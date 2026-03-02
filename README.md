@@ -13,7 +13,7 @@ _Built for the [Wealthsimple AI Builders Program](https://www.wealthsimple.com/e
 [![Eval](https://img.shields.io/badge/Eval-70%2F70%20%E2%9C%93-brightgreen)](#eval-harness)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-**[Live Demo](https://wealthsimple-compliance-ai.onrender.com)** · **[API Docs](https://wealthsimple-compliance-ai.onrender.com/docs)** · **[Problem Statement](#the-problem)** · **[Architecture](#architecture)**
+**[Live Demo](https://wealthsimple-compliance-ai.onrender.com)** · **[API Docs](https://wealthsimple-compliance-ai.onrender.com/docs)** · **[Written Explanation (500 words)](docs/WRITTEN_EXPLANATION.md)** · **[Architecture](#architecture)**
 
 </div>
 
