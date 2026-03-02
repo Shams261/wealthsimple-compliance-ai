@@ -1,0 +1,1 @@
+window.ComplianceUI = window.ComplianceUI || {};
