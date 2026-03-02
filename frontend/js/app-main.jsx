@@ -209,7 +209,10 @@
           );
           setSelectedObligation(refreshed || null);
         }
-        addToast("Review reverted — obligation restored to previous state", "success");
+        addToast(
+          "Review reverted — obligation restored to previous state",
+          "success",
+        );
       } catch (error) {
         addToast(error.message || "Revert failed", "error");
       } finally {
@@ -217,7 +220,8 @@
       }
     }
 
-    const canReview = currentRole === "admin" || currentRole === "compliance_officer";
+    const canReview =
+      currentRole === "admin" || currentRole === "compliance_officer";
     const canRevert = currentRole === "admin";
 
     function applyQuickFilter(type) {
@@ -381,6 +385,15 @@
                 />
                 {isLoading ? "Connecting..." : "System Live"}
               </div>
+              <a
+                href="https://github.com/Shams261/wealthsimple-compliance-ai"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn btn-github"
+                style={{ textDecoration: "none" }}
+              >
+                <Icons.github size={14} /> GitHub
+              </a>
               <button
                 className="btn btn-primary"
                 onClick={handleRunAnalysis}
@@ -411,7 +424,7 @@
               {
                 label: "Total Obligations",
                 value: data.stats.total_obligations || 0,
-                sub: `across ${(data.sources_count || 10)} regulators`,
+                sub: `across ${data.sources_count || 10} regulators`,
                 color: "var(--accent)",
                 icon: <Icons.fileText size={16} />,
                 filterKey: "all",
@@ -1087,9 +1100,20 @@
                 </div>
                 <div className="drawer-section">
                   <h4>Review Actions</h4>
-                  <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 8 }}>
-                    Current role: <strong style={{ color: "var(--accent)" }}>{currentRole}</strong>
-                    {canReview ? " — can approve/reject" : " — read-only access"}
+                  <div
+                    style={{
+                      fontSize: 12,
+                      color: "var(--text-muted)",
+                      marginBottom: 8,
+                    }}
+                  >
+                    Current role:{" "}
+                    <strong style={{ color: "var(--accent)" }}>
+                      {currentRole}
+                    </strong>
+                    {canReview
+                      ? " — can approve/reject"
+                      : " — read-only access"}
                     {canRevert ? " + can revert" : ""}
                   </div>
                   <div className="drawer-actions">
@@ -1127,14 +1151,30 @@
                       </React.Fragment>
                     )}
                     {selectedObligation.status === "draft" && !canReview && (
-                      <div style={{ fontSize: 13, color: "var(--text-muted)", fontStyle: "italic" }}>
+                      <div
+                        style={{
+                          fontSize: 13,
+                          color: "var(--text-muted)",
+                          fontStyle: "italic",
+                        }}
+                      >
                         Switch to compliance_officer or admin role to review.
                       </div>
                     )}
                     {selectedObligation.status !== "draft" && (
-                      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                        <div style={{ fontSize: 13, color: "var(--text-muted)" }}>
-                          Status: <strong>{selectedObligation.status}</strong> by {selectedObligation.reviewed_by || "unknown"}
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 8,
+                          flexWrap: "wrap",
+                        }}
+                      >
+                        <div
+                          style={{ fontSize: 13, color: "var(--text-muted)" }}
+                        >
+                          Status: <strong>{selectedObligation.status}</strong>{" "}
+                          by {selectedObligation.reviewed_by || "unknown"}
                         </div>
                         {canRevert && (
                           <button
@@ -1143,7 +1183,9 @@
                             onClick={() => handleRevert(selectedObligation.id)}
                             disabled={isReverting === selectedObligation.id}
                           >
-                            {isReverting === selectedObligation.id ? "Reverting..." : "↩ Revert Review"}
+                            {isReverting === selectedObligation.id
+                              ? "Reverting..."
+                              : "↩ Revert Review"}
                           </button>
                         )}
                       </div>
