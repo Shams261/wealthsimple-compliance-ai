@@ -1,0 +1,41 @@
+# OS / Editor
+.DS_Store
+.vscode/
+.idea/
+.claude/
+.history/
+*.swp
+*.swo
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyd
+*.so
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# Environments / Secrets
+.env
+.env.*
+!.env.example
+.venv/
+venv/
+
+# Build / Packaging
+build/
+dist/
+*.egg-info/
+
+# Runtime artifacts
+*.log
+*.sqlite3
+
+# Project-generated local data
+data/compliance.db
+data/llm_cache.json
+eval_results.json
