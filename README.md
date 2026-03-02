@@ -384,7 +384,7 @@ The system **amplifies human judgment; it never replaces it** on decisions that 
 ```
 User clicks "Scan Regulatory Sources"
     │
-    ├─► System reads 10 regulatory sources (47 sections)
+    ├─► System reads 10 regulatory sources (56 sections)
     │
     ├─► For each section, 25 domain matchers run
     │
@@ -473,7 +473,7 @@ wealthsimple-compliance-ai/
 │   └── llm_cache.py             # Persistent LLM cache (SHA-256, TTL, thread-safe)
 │
 ├── data/
-│   └── regulatory_sources.py    # 10 sources, 47 sections, 6 products, 14 controls
+│   └── regulatory_sources.py    # 10 sources, 56 sections, 6 products, 14 controls
 │
 ├── eval/
 │   ├── test_cases.py            # 70 eval test cases across 25 domains
