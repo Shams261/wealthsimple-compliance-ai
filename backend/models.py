@@ -1,6 +1,8 @@
 """
 Data models for the Regulatory Compliance Monitoring System.
-All models are immutable audit-friendly dataclasses with full traceability.
+Citation is frozen (immutable). Obligation is mutable by design — status,
+review fields, and escalation reasons are updated in place through the
+review workflow. AuditLogEntry is append-only (never modified after creation).
 """
 
 from dataclasses import dataclass, field

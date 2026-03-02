@@ -479,10 +479,13 @@ class ComplianceAnalyzer:
         # Detect conflicts
         conflicts = self.detect_conflicts(all_obligations)
 
-        # Mark conflict-related obligations for escalation
+        # Mark conflict-related obligations for escalation (both sides)
         for conflict in conflicts:
             for ob in all_obligations:
-                if ob.citation and conflict.source_a and ob.citation.excerpt == conflict.source_a.excerpt:
+                if ob.citation and (
+                    (conflict.source_a and ob.citation.excerpt == conflict.source_a.excerpt) or
+                    (conflict.source_b and ob.citation.excerpt == conflict.source_b.excerpt)
+                ):
                     if EscalationReason.POLICY_CONFLICT not in ob.escalation_reasons:
                         ob.escalation_reasons.append(EscalationReason.POLICY_CONFLICT)
                         ob.requires_human_review = True

@@ -174,7 +174,7 @@ This is the most important question. The system has **hard-coded boundaries** wh
 │     → Both excerpts surfaced, never auto-resolved     │
 │                                                        │
 │  Every obligation: Draft → Reviewed → Approved/Rejected│
-│  Every action logged in immutable audit trail          │
+│  Every action logged in append-only audit trail        │
 └──────────────────────────────────────────────────────┘
 ```
 
@@ -466,9 +466,9 @@ Compliance Officer sees flagged obligation
 wealthsimple-compliance-ai/
 │
 ├── backend/                     # Core application
-│   ├── server.py                # FastAPI server (17 endpoints, middleware, RBAC)
+│   ├── server.py                # FastAPI server (16 API + 1 root, middleware, RBAC)
 │   ├── analyzer.py              # Compliance engine (25 patterns, LLM chain, conflicts)
-│   ├── models.py                # Frozen dataclasses, enums, auto-escalation logic
+│   ├── models.py                # Dataclasses, enums, auto-escalation logic (Citation frozen)
 │   ├── storage.py               # SQLite persistence, atomic review, RBAC, revert
 │   └── llm_cache.py             # Persistent LLM cache (SHA-256, TTL, thread-safe)
 │
@@ -500,8 +500,7 @@ wealthsimple-compliance-ai/
 │   └── test_eval.py             # Eval harness tests (3)
 │
 ├── docs/                        # Submission documents
-│   ├── PABCF_500_WORDS.md       # 500-word written explanation
-│   └── AI_BUILDERS_SUBMISSION.md # Detailed 4-question answers
+│   └── WRITTEN_EXPLANATION.md   # 500-word written explanation (4 key questions)
 │
 ├── Dockerfile                   # Production container (gunicorn + uvicorn)
 ├── Makefile                     # 9 developer targets
@@ -556,7 +555,7 @@ make eval   # 70 eval cases, 6 metrics
 
 ## API Reference
 
-The system exposes **17 REST endpoints**. Full interactive documentation available at [`/docs`](https://wealthsimple-compliance-ai.onrender.com/docs) (auto-generated Swagger UI).
+The system exposes **16 API endpoints** plus a root `/` route serving the frontend (17 total). Full interactive documentation available at [`/docs`](https://wealthsimple-compliance-ai.onrender.com/docs) (auto-generated Swagger UI).
 
 ### Core Endpoints
 
@@ -641,7 +640,7 @@ The 70 test cases cover all 25 regulatory domains:
 $ make test
 
 tests/test_analyzer.py    20 passed  ← Engine, patterns, risk scoring
-tests/test_api.py         23 passed  ← All 17 endpoints + rate limiting
+tests/test_api.py         23 passed  ← All 16 API endpoints + rate limiting
 tests/test_models.py       9 passed  ← Dataclasses, auto-escalation
 tests/test_storage.py     16 passed  ← SQLite, RBAC, atomic review, revert
 tests/test_cache.py        7 passed  ← Cache set/get, TTL, stats
@@ -654,7 +653,7 @@ tests/test_eval.py         3 passed  ← Eval runner, score thresholds
 
 - **Analyzer:** All 25 domain patterns extract correctly; risk levels and confidence scores are assigned properly
 - **API:** Every endpoint responds correctly, including edge cases (empty text, invalid roles, rate limits returning 429)
-- **Models:** Frozen dataclasses prevent mutation; auto-escalation triggers correctly for all combinations
+- **Models:** Citation is frozen; Obligation is mutable by design (status/review updates); auto-escalation triggers correctly for all combinations
 - **Storage:** Atomic review prevents race conditions; RBAC denies unauthorized actions; revert restores previous state
 - **Cache:** SHA-256 keys are deterministic; TTL expiry works; thread-safety under concurrent access
 - **Eval:** All 6 metrics stay above 90% — this is the regression guard

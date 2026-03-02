@@ -56,10 +56,14 @@ ALLOWED_ORIGINS = (
 )
 logger.info(f"CORS allowed origins: {ALLOWED_ORIGINS}")
 
+# Browsers reject wildcard origins with credentials=True.
+# Only enable credentials when specific origins are configured.
+_use_credentials = ALLOWED_ORIGINS != ["*"]
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
-    allow_credentials=True,
+    allow_credentials=_use_credentials,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -381,23 +385,26 @@ class EvalSnippetRequest(BaseModel):
 def eval_test_snippet(request: EvalSnippetRequest):
     """Dynamic eval: test any new regulatory text against the system.
     Returns what the system extracted + accuracy against optional expected values.
-    This proves the system works on unknown data, not just the golden 30/50 set."""
+    This proves the system works on unknown data, not just the golden 70 set."""
     from eval.run_eval import EvalRunner
     runner = EvalRunner()
 
-    # Run extraction on the new snippet
-    actual_domains = runner._extract_domains_from_snippet(request.snippet)
-    actual_products = runner._extract_products_from_domains(actual_domains)
-    actual_controls = runner._extract_controls_from_domains(actual_domains)
-    actual_risk = runner._get_risk_level(actual_domains)
-    actual_human_review = runner._would_require_human_review(actual_domains, request.snippet)
-    actual_has_citation = runner._check_has_citation(request.snippet, actual_domains)
+    # Run the REAL analyzer pipeline on the snippet
+    obligations = runner.analyzer._analyze_text_deterministic(request.snippet)
+
+    # Extract actuals from real Obligation objects
+    actual_domains = sorted(EvalRunner._extract_domains_from_obligations(obligations))
+    actual_products = sorted(EvalRunner._extract_products_from_obligations(obligations))
+    actual_controls = sorted(EvalRunner._extract_controls_from_obligations(obligations))
+    actual_risk = EvalRunner._get_highest_risk(obligations) if obligations else "low"
+    actual_human_review = EvalRunner._any_requires_human_review(obligations)
+    actual_has_citation = EvalRunner._any_has_citation(obligations)
 
     result = {
         "extracted": {
-            "domains": sorted(set(actual_domains)),
-            "products": sorted(actual_products),
-            "controls": sorted(actual_controls),
+            "domains": actual_domains,
+            "products": actual_products,
+            "controls": actual_controls,
             "risk_level": actual_risk,
             "requires_human_review": actual_human_review,
             "has_citation": actual_has_citation,
@@ -407,7 +414,7 @@ def eval_test_snippet(request: EvalSnippetRequest):
 
     # If expected values provided, compute accuracy
     if request.expected_domains:
-        expected = set(request.expected_domains)
+        expected = {d.lower() for d in request.expected_domains}
         actual = set(actual_domains)
         result["accuracy"]["domain_accuracy"] = (
             len(expected & actual) / max(len(expected), 1) * 100
@@ -415,12 +422,12 @@ def eval_test_snippet(request: EvalSnippetRequest):
     if request.expected_products:
         expected = set(request.expected_products)
         result["accuracy"]["product_accuracy"] = (
-            len(expected & actual_products) / max(len(expected), 1) * 100
+            len(expected & set(actual_products)) / max(len(expected), 1) * 100
         )
     if request.expected_controls:
         expected = set(request.expected_controls)
         result["accuracy"]["control_accuracy"] = (
-            len(expected & actual_controls) / max(len(expected), 1) * 100
+            len(expected & set(actual_controls)) / max(len(expected), 1) * 100
         )
     if request.expected_risk_level:
         result["accuracy"]["risk_match"] = actual_risk == request.expected_risk_level

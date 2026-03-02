@@ -2,7 +2,7 @@
 """
 Eval Harness for Regulatory Compliance Monitoring System.
 
-Runs 30 regulatory snippets through the analyzer and measures:
+Runs 70 regulatory snippets through the analyzer and measures:
   1. Obligation extraction accuracy (did we find the right domains?)
   2. Correct product mapping rate
   3. Correct control mapping rate
@@ -24,99 +24,102 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from backend.models import (
     Citation, Obligation, RiskLevel, ConfidenceLevel, EscalationReason
 )
-from backend.analyzer import ComplianceAnalyzer, OBLIGATION_PATTERNS
+from backend.analyzer import ComplianceAnalyzer
 from eval.test_cases import EVAL_TEST_CASES
 
 
 class EvalRunner:
+    """
+    Eval runner that sends snippets through the REAL analyzer pipeline
+    (_analyze_text_deterministic) and compares actual Obligation objects
+    against expected values.  No logic is duplicated from the analyzer —
+    this is a true black-box evaluation.
+    """
+
     def __init__(self):
         self.analyzer = ComplianceAnalyzer()
         self.results = []
 
-    def _extract_domains_from_snippet(self, snippet: str) -> list:
-        """Run the same keyword matching logic the analyzer uses on a raw snippet."""
-        found_domains = []
-        lower = snippet.lower()
-        for domain, pattern in OBLIGATION_PATTERNS.items():
-            for kw in pattern["keywords"]:
-                if kw.lower() in lower:
-                    found_domains.append(domain)
-                    break
-        return found_domains
+    # ------------------------------------------------------------------
+    # Helpers that read from real Obligation objects, NOT from patterns
+    # ------------------------------------------------------------------
 
-    def _extract_products_from_domains(self, domains: list) -> set:
-        """Get all products mapped from detected domains."""
+    @staticmethod
+    def _extract_domains_from_obligations(obligations: list) -> set:
+        """Parse domain tags from obligation descriptions produced by the analyzer."""
+        import re
+        domains = set()
+        for ob in obligations:
+            m = re.match(r"\[([A-Z_]+)\]", ob.description)
+            if m:
+                domains.add(m.group(1).lower())
+        return domains
+
+    @staticmethod
+    def _extract_products_from_obligations(obligations: list) -> set:
+        """Collect product IDs from real mapped_products on Obligation objects."""
         products = set()
-        for domain in domains:
-            if domain in OBLIGATION_PATTERNS:
-                products.update(OBLIGATION_PATTERNS[domain]["products"])
+        for ob in obligations:
+            for p in ob.mapped_products:
+                products.add(p["id"])
         return products
 
-    def _extract_controls_from_domains(self, domains: list) -> set:
-        """Get all controls mapped from detected domains."""
+    @staticmethod
+    def _extract_controls_from_obligations(obligations: list) -> set:
+        """Collect control IDs from real mapped_controls on Obligation objects."""
         controls = set()
-        for domain in domains:
-            if domain in OBLIGATION_PATTERNS:
-                controls.update(OBLIGATION_PATTERNS[domain]["controls"])
+        for ob in obligations:
+            for c in ob.mapped_controls:
+                controls.add(c["id"])
         return controls
 
-    def _check_has_citation(self, snippet: str, domains: list) -> bool:
-        """Check if the analyzer would produce a citation for this snippet."""
-        # If we can extract a key sentence matching a keyword, we'd have a citation
-        import re
-        sentences = re.split(r'(?<=[.!?])\s+', snippet)
-        for domain in domains:
-            if domain in OBLIGATION_PATTERNS:
-                for kw in OBLIGATION_PATTERNS[domain]["keywords"]:
-                    for sentence in sentences:
-                        if kw.lower() in sentence.lower():
-                            return True
-        return False
-
-    def _get_risk_level(self, domains: list) -> str:
-        """Get the highest risk level among detected domains."""
+    @staticmethod
+    def _get_highest_risk(obligations: list) -> str:
+        """Return the highest risk level string across all obligations."""
         risk_priority = {"critical": 4, "high": 3, "medium": 2, "low": 1}
         max_risk = "low"
-        for domain in domains:
-            if domain in OBLIGATION_PATTERNS:
-                level = OBLIGATION_PATTERNS[domain]["risk_default"].value
-                if risk_priority.get(level, 0) > risk_priority.get(max_risk, 0):
-                    max_risk = level
+        for ob in obligations:
+            level = ob.risk_level.value
+            if risk_priority.get(level, 0) > risk_priority.get(max_risk, 0):
+                max_risk = level
         return max_risk
 
-    def _would_require_human_review(self, domains: list, snippet: str) -> bool:
-        """Check if the obligation would be flagged for human review."""
-        risk = self._get_risk_level(domains)
-        if risk in ("high", "critical"):
-            return True
-        # Check customer-facing
-        customer_keywords = [
-            "client", "customer", "notify", "disclosure", "consent",
-            "securityholder", "recipient", "complaint", "suitability",
-        ]
-        lower = snippet.lower()
-        if any(kw in lower for kw in customer_keywords):
-            return True
-        return False
+    @staticmethod
+    def _any_requires_human_review(obligations: list) -> bool:
+        """Check if ANY obligation in the set was flagged for human review."""
+        return any(ob.requires_human_review for ob in obligations)
+
+    @staticmethod
+    def _any_has_citation(obligations: list) -> bool:
+        """Check if ANY obligation has a non-None citation."""
+        return any(ob.citation is not None for ob in obligations)
 
     def evaluate_single(self, test_case: dict) -> dict:
-        """Evaluate a single test case."""
+        """
+        Evaluate a single test case by running the snippet through the
+        real analyzer pipeline and comparing the produced Obligation
+        objects against expected values.
+        """
         tc_id = test_case["id"]
         snippet = test_case["snippet"]
         expected = test_case["expected"]
 
-        # Run extraction
-        actual_domains = self._extract_domains_from_snippet(snippet)
-        actual_products = self._extract_products_from_domains(actual_domains)
-        actual_controls = self._extract_controls_from_domains(actual_domains)
-        actual_has_citation = self._check_has_citation(snippet, actual_domains)
-        actual_risk = self._get_risk_level(actual_domains)
-        actual_human_review = self._would_require_human_review(actual_domains, snippet)
+        # ---- Run the REAL analyzer pipeline ----
+        obligations = self.analyzer._analyze_text_deterministic(snippet)
 
-        # Compare
+        # ---- Extract actuals from real Obligation objects ----
+        actual_domains = self._extract_domains_from_obligations(obligations)
+        actual_products = self._extract_products_from_obligations(obligations)
+        actual_controls = self._extract_controls_from_obligations(obligations)
+        actual_has_citation = self._any_has_citation(obligations)
+        actual_risk = self._get_highest_risk(obligations) if obligations else "low"
+        actual_human_review = self._any_requires_human_review(obligations)
+
+        # ---- Compare against expected ----
         expected_domains = set(expected["domains"])
-        actual_domains_set = set(actual_domains)
-        domain_match = len(expected_domains & actual_domains_set) / max(len(expected_domains), 1)
+        # Normalize to lowercase for comparison
+        expected_domains_lower = {d.lower() for d in expected_domains}
+        domain_match = len(expected_domains_lower & actual_domains) / max(len(expected_domains_lower), 1)
 
         expected_products = set(expected["products"])
         product_match = len(expected_products & actual_products) / max(len(expected_products), 1)
@@ -142,8 +145,8 @@ class EvalRunner:
             "citation_coverage": citation_match,
             "risk_level_accuracy": risk_match,
             "escalation_accuracy": escalation_match,
-            "expected_domains": sorted(expected_domains),
-            "actual_domains": sorted(actual_domains_set),
+            "expected_domains": sorted(expected_domains_lower),
+            "actual_domains": sorted(actual_domains),
             "domain_correct": domain_match == 1.0,
             "risk_correct": risk_match == 1.0,
             "escalation_correct": escalation_match == 1.0,

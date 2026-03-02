@@ -230,7 +230,8 @@ class TestEvalEndpoint:
         })
         assert resp.status_code == 200
         data = resp.json()
-        assert "KYC" in data["extracted"]["domains"]
+        # Domains come from real pipeline as lowercase
+        assert "kyc" in data["extracted"]["domains"]
         assert data["accuracy"]["domain_accuracy"] == 100.0
 
 
